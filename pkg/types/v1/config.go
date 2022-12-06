@@ -148,6 +148,7 @@ type InstallSpec struct {
 	Passive          Image
 	GrubConf         string
 	DisableBootEntry bool `yaml:"disable-boot-entry,omitempty" mapstructure:"disable-boot-entry"`
+	Switch           bool `yaml:"switch,omitempty" mapstructure:"switch"`
 }
 
 // Sanitize checks the consistency of the struct, returns error
@@ -251,13 +252,29 @@ func (u *UpgradeSpec) Sanitize() error {
 // Partition struct represents a partition with its commonly configurable values, size in MiB
 type Partition struct {
 	Name            string
-	FilesystemLabel string   `yaml:"label,omitempty" mapstructure:"label"`
-	Size            uint     `yaml:"size,omitempty" mapstructure:"size"`
-	FS              string   `yaml:"fs,omitempty" mapstructure:"fs"`
-	Flags           []string `yaml:"flags,omitempty" mapstructure:"flags"`
+	FilesystemLabel string      `yaml:"label,omitempty" mapstructure:"label"`
+	Size            uint        `yaml:"size,omitempty" mapstructure:"size"`
+	FS              string      `yaml:"fs,omitempty" mapstructure:"fs"`
+	Flags           []string    `yaml:"flags,omitempty" mapstructure:"flags"`
+	Encryption      *Encryption `yaml:"encryption,omitempty" mapstructure:"encryption"`
 	MountPoint      string
 	Path            string
 	Disk            string
+}
+
+// Encryption contains information needed for encrypting a partition
+type Encryption struct {
+	// MappedDeviceName is the mapped device usable after encryption, eg cr_root
+	MappedDeviceName string `yaml:"name,omitempty" mapstructure:"name"`
+	// KeySlots contains all key-slots to write to the LUKS-header
+	KeySlots []KeySlot `yaml:"key_slots,omitempty" mapstructure:"key_slots"`
+}
+
+// KeySlot is a key-slot in a LUKS-header
+type KeySlot struct {
+	Slot       int
+	Passphrase string
+	KeyFile    string
 }
 
 type PartitionList []*Partition

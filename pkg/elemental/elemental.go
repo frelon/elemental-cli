@@ -83,22 +83,37 @@ func (e *Elemental) createAndFormatPartition(disk *partitioner.Disk, part *v1.Pa
 	if err != nil {
 		return err
 	}
+
+	mappedDev := partDev
+	if part.Encryption != nil {
+		e.config.Logger.Debugf("Encrypting partition %s into %s, using %v slots", partDev, part.Encryption.MappedDeviceName, len(part.Encryption.KeySlots))
+		err := partitioner.EncryptDevice(e.config.Runner, partDev, part.Encryption.MappedDeviceName, part.Encryption.KeySlots)
+		if err != nil {
+			e.config.Logger.Errorf("Failed encrypting %s partition", partDev)
+			return err
+		}
+
+		mappedDev = fmt.Sprintf("/dev/mapper/%s", part.Encryption.MappedDeviceName)
+	}
+
+	e.config.Logger.Debugf("Using device %s", mappedDev)
+
 	if part.FS != "" {
 		e.config.Logger.Debugf("Formatting partition with label %s", part.FilesystemLabel)
-		err = partitioner.FormatDevice(e.config.Runner, partDev, part.FS, part.FilesystemLabel)
+		err = partitioner.FormatDevice(e.config.Runner, mappedDev, part.FS, part.FilesystemLabel)
 		if err != nil {
 			e.config.Logger.Errorf("Failed formatting partition %s", part.Name)
 			return err
 		}
 	} else {
 		e.config.Logger.Debugf("Wipe file system on %s", part.Name)
-		err = disk.WipeFsOnPartition(partDev)
+		err = disk.WipeFsOnPartition(mappedDev)
 		if err != nil {
 			e.config.Logger.Errorf("Failed to wipe filesystem of partition %s", partDev)
 			return err
 		}
 	}
-	part.Path = partDev
+	part.Path = mappedDev
 	return nil
 }
 

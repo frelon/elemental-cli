@@ -24,9 +24,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/twpayne/go-vfs"
+
 	v1 "github.com/rancher/elemental-cli/pkg/types/v1"
 	"github.com/rancher/elemental-cli/pkg/utils"
-	"github.com/twpayne/go-vfs"
 )
 
 const (
