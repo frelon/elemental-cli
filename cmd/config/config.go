@@ -109,9 +109,9 @@ func ReadConfigBuild(configDir string, flags *pflag.FlagSet, mounter mount.Inter
 	configLogger(cfg.Logger, cfg.Fs)
 	if configDir == "" {
 		configDir = "."
-		cfg.Logger.Info("reading configuration from current directory")
+		cfg.Logger.Info("Reading configuration from current directory")
 	} else {
-		cfg.Logger.Infof("reading configuration from '%s'", configDir)
+		cfg.Logger.Infof("Reading configuration from '%s'", configDir)
 	}
 
 	// merge yaml config files on top of default runconfig
@@ -153,7 +153,7 @@ func ReadConfigRun(configDir string, flags *pflag.FlagSet, mounter mount.Interfa
 	if configDir == "" {
 		configDir = constants.ConfigDir
 	}
-	cfg.Logger.Infof("reading configuration form '%s'", configDir)
+	cfg.Logger.Infof("Reading configuration from '%s'", configDir)
 
 	const cfgDefault = "/etc/os-release"
 	if exists, _ := utils.Exists(cfg.Fs, cfgDefault); exists {
@@ -317,6 +317,38 @@ func ReadBuildISO(b *v1.BuildConfig, flags *pflag.FlagSet) (*v1.LiveISO, error) 
 	err = iso.Sanitize()
 	b.Logger.Debugf("Loaded LiveISO: %s", litter.Sdump(iso))
 	return iso, err
+}
+
+func ReadMountSpec(r *v1.RunConfig, flags *pflag.FlagSet) (*v1.MountSpec, error) {
+	mount := config.NewMountSpec(r.Config)
+	vp := viper.Sub("mount")
+	if vp == nil {
+		vp = viper.New()
+	}
+
+	if exists, _ := utils.Exists(r.Config.Fs, constants.DefaultLayoutFile); exists {
+		viper.SetConfigFile(constants.DefaultLayoutFile)
+		viper.SetConfigType("env")
+
+		err := viper.MergeInConfig()
+		if err != nil {
+			r.Config.Logger.Errorf("error merging %s file: %s", constants.DefaultLayoutFile, err)
+			return mount, err
+		}
+	}
+
+	// Bind mount cmd flags
+	bindGivenFlags(vp, flags)
+	// Bind mount env vars
+	viperReadEnv(vp, "MOUNT", constants.GetMountKeyEnvMap())
+
+	err := vp.Unmarshal(mount, setDecoder, decodeHook)
+	if err != nil {
+		r.Logger.Warnf("error unmarshalling MountSpec: %s", err)
+	}
+	err = mount.Sanitize()
+	r.Logger.Debugf("Loaded mount spec: %s", litter.Sdump(mount))
+	return mount, err
 }
 
 func configLogger(log v1.Logger, vfs v1.FS) {

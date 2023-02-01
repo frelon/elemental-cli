@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -274,6 +275,41 @@ func (u *UpgradeSpec) Sanitize() error {
 	if u.Recovery.FS == constants.SquashFs {
 		u.Recovery.Label = ""
 	}
+	return nil
+}
+
+type MountSpec struct {
+	Partitions     ElementalPartitions
+	Image          Image
+	ImagePath      string `yaml:"image,omitempty" mapstructure:"image"`
+	RootPermission string `yaml:"root-perm,omitempty" mapstructure:"root-perm"`
+	MountPoint     string `yaml:"mountpoint,omitempty" mapstructure:"mountpoint"`
+	SwitchRoot     bool   `yaml:"switch-root,omitempty" mapstructure:"switch-root"`
+
+	Volumes              []string `yaml:"volumes,omitempty" mapstructure:"volumes"`
+	Overlay              string   `yaml:"overlay,omitempty" mapstructure:"overlay"`
+	RwPaths              []string `yaml:"rw-paths,omitempty" mapstructure:"rw-paths"`
+	PersistentStatePaths []string `yaml:"persistent-state-paths,omitempty" mapstructure:"persistent-state-paths"`
+	PersistentStateBind  bool     `yaml:"persistent-state-bind,omitempty" mapstructure:"persistent-state-bind"`
+}
+
+// Sanitize checks the consistency of the struct, returns error
+// if unsolvable inconsistencies are found
+func (m *MountSpec) Sanitize() error {
+	if m.Image.File == "" {
+		return errors.New("undefined image file")
+	}
+
+	if m.Image.MountPoint == "" {
+		return errors.New("undefined image mountpoint")
+	}
+
+	if m.Image.MountPoint != m.MountPoint {
+		m.Image.MountPoint = m.MountPoint
+	}
+
+	m.Image.File = filepath.Join(m.Partitions.State.MountPoint, m.ImagePath)
+
 	return nil
 }
 

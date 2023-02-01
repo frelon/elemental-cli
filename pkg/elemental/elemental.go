@@ -188,14 +188,15 @@ func (e Elemental) MountPartition(part *v1.Partition, opts ...string) error {
 			e.config.Logger.Errorf("Could not find a device with label %s", part.FilesystemLabel)
 			return err
 		}
+		e.config.Logger.Infof("Found device %s for label %s", device, part.FilesystemLabel)
 		part.Path = device
 	}
+	e.config.Logger.Debugf("Mounting device %s to %s", part.Path, part.MountPoint)
 	err = e.config.Mounter.Mount(part.Path, part.MountPoint, "auto", opts)
 	if err != nil {
 		e.config.Logger.Errorf("Failed mounting device %s with label %s", part.Path, part.FilesystemLabel)
-		return err
 	}
-	return nil
+	return err
 }
 
 // UnmountPartition unmounts the given partition or does nothing if not mounted

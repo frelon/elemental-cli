@@ -50,6 +50,8 @@ const (
 	LinuxImgFs         = "ext2"
 	SquashFs           = "squashfs"
 	EfiFs              = "vfat"
+	TmpFs              = "tmpfs"
+	OverlayFs          = "overlay"
 	BiosFs             = ""
 	EfiSize            = uint(64)
 	OEMSize            = uint(64)
@@ -66,6 +68,9 @@ const (
 	UsrLocalPath       = "/usr/local"
 	OEMPath            = "/oem"
 	ConfigDir          = "/etc/elemental"
+	DefaultSysroot     = "/sysroot"
+	DefaultRootPerm    = "ro"
+	DefaultLayoutFile  = "/run/cos/cos-layout.env"
 
 	// Mountpoints of images and partitions
 	RecoveryDir     = "/run/cos/recovery"
@@ -78,6 +83,7 @@ const (
 	ImgSrcDir       = "/run/cos/imgsrc"
 	WorkingImgDir   = "/run/cos/workingtree"
 	RunningStateDir = "/run/initramfs/cos-state" // TODO: converge this constant with StateDir/RecoveryDir in dracut module from cos-toolkit
+	OverlayDir      = "/run/overlay"
 
 	// Live image mountpoints
 	ISOBaseTree = "/run/rootfsbase"
@@ -89,7 +95,7 @@ const (
 	RecoveryImgFile   = "recovery.img"
 	TransitionImgFile = "transition.img"
 
-	// Yip stages evaluated on reset/upgrade/install action
+	// Yip stages evaluated on reset/upgrade/install/mount-rootfs action
 	AfterInstallChrootHook = "after-install-chroot"
 	AfterInstallHook       = "after-install"
 	PostInstallHook        = "post-install"
@@ -102,6 +108,7 @@ const (
 	AfterUpgradeHook       = "after-upgrade"
 	PostUpgradeHook        = "post-upgrade"
 	BeforeUpgradeHook      = "before-upgrade"
+	InitramfsHook          = "initramfs"
 
 	// SELinux targeted policy paths
 	SELinuxTargetedPath        = "/etc/selinux/targeted"
@@ -225,4 +232,14 @@ func GetISOKeyEnvMap() map[string]string {
 func GetDiskKeyEnvMap() map[string]string {
 	// None for the time being
 	return map[string]string{}
+}
+
+// GetMountKeyEnvMap returns environment variable bindings to MountSpec data
+func GetMountKeyEnvMap() map[string]string {
+	return map[string]string{
+		"image":      "IMAGE",
+		"mountpoint": "MOUNTPOINT",
+		"volumes":    "VOLUMES",
+		"overlay":    "OVERLAY",
+	}
 }

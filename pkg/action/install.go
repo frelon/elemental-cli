@@ -200,6 +200,8 @@ func (i InstallAction) Run() (err error) {
 		return elementalError.NewFromError(err, elementalError.HookAfterInstall)
 	}
 
+	i.cfg.Logger.Debug("Setting GRUB labels...")
+
 	grubVars := i.spec.GetGrubLabels()
 	err = grub.SetPersistentVariables(
 		filepath.Join(i.spec.Partitions.State.MountPoint, cnst.GrubOEMEnv),

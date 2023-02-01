@@ -21,9 +21,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
+
 	v1 "github.com/rancher/elemental-cli/pkg/types/v1"
 	v1mock "github.com/rancher/elemental-cli/tests/mocks"
-	"github.com/sirupsen/logrus"
 )
 
 var _ = Describe("Runner", Label("types", "runner"), func() {
@@ -51,7 +52,6 @@ var _ = Describe("Runner", Label("types", "runner"), func() {
 		r.SetLogger(logger)
 		Expect(r.GetLogger()).To(Equal(logger))
 	})
-
 	It("logs the command when on debug", func() {
 		memLog := &bytes.Buffer{}
 		logger := v1.NewBufferLogger(memLog)
@@ -78,5 +78,13 @@ var _ = Describe("Runner", Label("types", "runner"), func() {
 		r := v1.RealRunner{}
 		exists := r.CommandExists("true")
 		Expect(exists).To(BeTrue())
+	})
+	It("logs when command is not found", func() {
+		memLog := &bytes.Buffer{}
+		logger := v1.NewBufferLogger(memLog)
+		r := v1.RealRunner{Logger: logger}
+		_, err := r.Run("IAmMissing")
+		Expect(err).NotTo(BeNil())
+		Expect(memLog.String()).To(ContainSubstring("not found"))
 	})
 })

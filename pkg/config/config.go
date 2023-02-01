@@ -220,6 +220,27 @@ func NewInitSpec(cfg v1.Config) *v1.InitSpec {
 	}
 }
 
+func NewMountSpec(cfg v1.Config) *v1.MountSpec {
+	img := v1.Image{
+		File:       filepath.Join(constants.StateDir, "cOS", constants.ActiveImgFile),
+		MountPoint: constants.DefaultSysroot,
+	}
+
+	return &v1.MountSpec{
+		Partitions:           NewInstallElementalParitions(),
+		Image:                img,
+		RootPermission:       constants.DefaultRootPerm,
+		ImagePath:            filepath.Join("/cOS", constants.ActiveImgFile),
+		MountPoint:           constants.DefaultSysroot,
+		SwitchRoot:           false,
+		Volumes:              []string{"LABEL=COS_OEM:/oem", "LABEL=COS_PERSISTENT:/usr/local"},
+		Overlay:              "tmpfs:25%",
+		RwPaths:              []string{"/var", "/etc"},
+		PersistentStatePaths: []string{"/etc", "/root", "/home", "/opt", "/usr/local", "/var"},
+		PersistentStateBind:  true,
+	}
+}
+
 func NewInstallElementalParitions() v1.ElementalPartitions {
 	partitions := v1.ElementalPartitions{}
 	partitions.OEM = &v1.Partition{
