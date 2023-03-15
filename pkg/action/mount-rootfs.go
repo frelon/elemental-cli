@@ -52,7 +52,7 @@ func (m MountRootFSAction) MountRootFS() error {
 	}
 
 	fstab := []string{
-		"/dev/loop0 / auto ro 0 0",
+		"/dev/loop0\t/\tauto\tro\t0\t0",
 		fmt.Sprintf("%s\t%s\t%s\t%s\t%d\t%d", constants.TmpFs, constants.OverlayDir, constants.TmpFs, "defaults,size=25%", 0, 0),
 	}
 
