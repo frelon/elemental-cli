@@ -78,8 +78,8 @@ func (m MountRootFSAction) MountRootFS() error {
 			return err
 		}
 
-		mount := NewMount(rw, m.spec.MountPoint, constants.OverlayDir, constants.OverlayFs, constants.OverlayFs)
-		if err := mount.MountOverlay(&m.cfg.Config); err != nil {
+		mount := NewOverlayMount(rw, m.spec.MountPoint, constants.OverlayDir, constants.OverlayFs)
+		if err := mount.Mount(&m.cfg.Config); err != nil {
 			m.cfg.Config.Logger.Errorf("Error writing fstab: %v", err.Error())
 			return err
 		}
@@ -88,9 +88,32 @@ func (m MountRootFSAction) MountRootFS() error {
 	}
 
 	// mount state
-	// mount persistent
+	for _, statePath := range m.spec.PersistentStatePaths {
+		base := filepath.Join(m.spec.MountPoint, statePath)
+		if err := utils.MkdirAll(m.cfg.Config.Fs, base, constants.DirPerm); err != nil {
+			m.cfg.Config.Logger.Errorf("Error mkdir base: %v", err.Error())
+			return err
+		}
 
-	// Create fstab, systemd-services
+		trimmed := strings.TrimPrefix(statePath, "/")
+		stateDir := filepath.Join(m.spec.MountPoint, strings.ReplaceAll(trimmed, "/", "-")+".bind")
+		if err := utils.MkdirAll(m.cfg.Config.Fs, stateDir, constants.DirPerm); err != nil {
+			m.cfg.Config.Logger.Errorf("Error mkdir base: %v", err.Error())
+			return err
+		}
+
+		// TODO: should create OverlayMount if PersistentStateBind is set to false
+		mount := NewBindMount(statePath, m.spec.MountPoint, m.spec.PersistentStateTarget)
+
+		if err := mount.Mount(&m.cfg.Config); err != nil {
+			m.cfg.Config.Logger.Errorf("Error writing fstab: %v", err.Error())
+			return err
+		}
+
+		fstab = append(fstab, mount.FstabLine())
+	}
+
+	// TODO: mount persistent
 
 	fstabPath := filepath.Join(m.spec.MountPoint, "etc", "fstab")
 	if err := m.cfg.Config.Fs.WriteFile(fstabPath, []byte(strings.Join(fstab, "\n")), 0644); err != nil {
@@ -102,37 +125,72 @@ func (m MountRootFSAction) MountRootFS() error {
 	return nil
 }
 
-type Mount struct {
+type OverlayMount struct {
 	path       string
 	base       string
 	overlayDir string
 	source     string
 	mountTo    string
-	fstype     string
 }
 
-func NewMount(path, base, overlayDir, source, fstype string) Mount {
-	return Mount{
+func NewOverlayMount(path, base, overlayDir, source string) OverlayMount {
+	return OverlayMount{
 		path:       path,
 		base:       base,
 		overlayDir: overlayDir,
 		source:     source,
-		fstype:     fstype,
 	}
 }
 
-func (m Mount) FstabLine() string {
+func (m OverlayMount) FstabLine() string {
 	trimmed := strings.TrimPrefix(m.path, "/")
 	upper := filepath.Join(m.overlayDir, strings.ReplaceAll(trimmed, "/", "-")+".overlay", "upper")
 	work := filepath.Join(m.overlayDir, strings.ReplaceAll(trimmed, "/", "-")+".overlay", "work")
 	fstabOpts := []string{"defaults", fmt.Sprintf("lowerdir=%s", m.source), fmt.Sprintf("upperdir=%s", upper), fmt.Sprintf("workdir=%s", work)}
-	return fmt.Sprintf("%s\t%s\t%s\t%s", m.source, m.path, m.fstype, strings.Join(fstabOpts, ","))
+	return fmt.Sprintf("%s\t%s\t%s\t%s", m.source, m.path, constants.OverlayFs, strings.Join(fstabOpts, ","))
 }
 
-func (m Mount) MountOverlay(cfg *v1.Config) error {
+func (m OverlayMount) Mount(cfg *v1.Config) error {
 	trimmed := strings.TrimPrefix(m.path, "/")
 	upper := filepath.Join(m.overlayDir, strings.ReplaceAll(trimmed, "/", "-")+".overlay", "upper")
 	work := filepath.Join(m.overlayDir, strings.ReplaceAll(trimmed, "/", "-")+".overlay", "work")
 	opts := []string{"defaults", fmt.Sprintf("lowerdir=%s", filepath.Join(m.base, m.path)), fmt.Sprintf("upperdir=%s", upper), fmt.Sprintf("workdir=%s", work)}
-	return cfg.Mounter.Mount(m.source, filepath.Join(m.base, m.path), m.fstype, opts)
+	return cfg.Mounter.Mount(m.source, filepath.Join(m.base, m.path), constants.OverlayFs, opts)
+}
+
+type BindMount struct {
+	path     string
+	base     string
+	stateDir string
+}
+
+// example:
+// /usr/local/.state/etc-systemd.bind /etc/systemd none defaults,bind 0 0
+
+// state_dir="/sysroot${state_target}/${mount//\//-}.bind"
+// mount="${mount#/}"
+// base="/sysroot/${mount}"
+// state_dir="/sysroot${state_target}/${mount//\//-}.bind"
+
+// rsync -aqAX "${base}/" "${state_dir}/"
+// mount -o defaults,bind "${state_dir}" "${base}"
+// fstab_line="${state_dir##/sysroot} /${mount} none defaults,bind 0 0\n"
+
+func NewBindMount(path, base, stateDir string) BindMount {
+	return BindMount{
+		path:     path,
+		base:     base,
+		stateDir: stateDir,
+	}
+}
+
+func (m BindMount) FstabLine() string {
+	fstabOpts := []string{"defaults", "bind"}
+	return fmt.Sprintf("%s\t%s\t%s\t%s", m.stateDir, m.path, constants.NoneFs, strings.Join(fstabOpts, ","))
+}
+
+func (m BindMount) Mount(cfg *v1.Config) error {
+	source := filepath.Join(m.base, m.path)
+	opts := []string{"defaults", "bind"}
+	return cfg.Mounter.Mount(source, m.stateDir, constants.NoneFs, opts)
 }

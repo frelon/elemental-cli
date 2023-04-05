@@ -52,6 +52,7 @@ const (
 	EfiFs              = "vfat"
 	TmpFs              = "tmpfs"
 	OverlayFs          = "overlay"
+	NoneFs             = "none"
 	BiosFs             = ""
 	EfiSize            = uint(64)
 	OEMSize            = uint(64)

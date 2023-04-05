@@ -227,17 +227,18 @@ func NewMountSpec(cfg v1.Config) *v1.MountSpec {
 	}
 
 	return &v1.MountSpec{
-		Partitions:           NewInstallElementalParitions(),
-		Image:                img,
-		RootPermission:       constants.DefaultRootPerm,
-		ImagePath:            filepath.Join("/cOS", constants.ActiveImgFile),
-		MountPoint:           constants.DefaultSysroot,
-		SwitchRoot:           false,
-		Volumes:              []string{"LABEL=COS_OEM:/oem", "LABEL=COS_PERSISTENT:/usr/local"},
-		Overlay:              "tmpfs:25%",
-		RwPaths:              []string{"/var", "/etc"},
-		PersistentStatePaths: []string{"/etc", "/root", "/home", "/opt", "/usr/local", "/var"},
-		PersistentStateBind:  true,
+		Partitions:            NewInstallElementalParitions(),
+		Image:                 img,
+		RootPermission:        constants.DefaultRootPerm,
+		ImagePath:             filepath.Join("/cOS", constants.ActiveImgFile),
+		MountPoint:            constants.DefaultSysroot,
+		SwitchRoot:            false,
+		Volumes:               []string{"LABEL=COS_OEM:/oem", "LABEL=COS_PERSISTENT:/usr/local"},
+		Overlay:               "tmpfs:25%",
+		RwPaths:               []string{"/var", "/etc"},
+		PersistentStatePaths:  []string{"/etc/systemd", "/etc/rancher", "/etc/ssh", "/etc/iscsi", "/etc/cni", "/home", "/opt", "/root", "/usr/libexec", "/var/log", "/var/lib/elemental", "/var/lib/rancher", "/var/lib/kubelet", "/var/lib/NetworkManager", "/var/lib/longhorn", "/var/lib/cni", "/var/lib/calico"},
+		PersistentStateTarget: "/usr/local/.state",
+		PersistentStateBind:   true,
 	}
 }
 

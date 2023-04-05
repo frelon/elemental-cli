@@ -286,11 +286,12 @@ type MountSpec struct {
 	MountPoint     string `yaml:"mountpoint,omitempty" mapstructure:"mountpoint"`
 	SwitchRoot     bool   `yaml:"switch-root,omitempty" mapstructure:"switch-root"`
 
-	Volumes              []string `yaml:"volumes,omitempty" mapstructure:"volumes"`
-	Overlay              string   `yaml:"overlay,omitempty" mapstructure:"overlay"`
-	RwPaths              []string `yaml:"rw-paths,omitempty" mapstructure:"rw-paths"`
-	PersistentStatePaths []string `yaml:"persistent-state-paths,omitempty" mapstructure:"persistent-state-paths"`
-	PersistentStateBind  bool     `yaml:"persistent-state-bind,omitempty" mapstructure:"persistent-state-bind"`
+	Volumes               []string `yaml:"volumes,omitempty" mapstructure:"volumes"`
+	Overlay               string   `yaml:"overlay,omitempty" mapstructure:"overlay"`
+	RwPaths               []string `yaml:"rw-paths,omitempty" mapstructure:"rw-paths"`
+	PersistentStatePaths  []string `yaml:"persistent-state-paths,omitempty" mapstructure:"persistent-state-paths"`
+	PersistentStateBind   bool     `yaml:"persistent-state-bind,omitempty" mapstructure:"persistent-state-bind"`
+	PersistentStateTarget string   `yaml:"persistent-state-target,omitempty" mapstructure:"persistent-state-target"`
 }
 
 // Sanitize checks the consistency of the struct, returns error
