@@ -80,14 +80,45 @@ func (m MountRootFSAction) MountRootFS() error {
 
 		mount := NewOverlayMount(rw, m.spec.MountPoint, constants.OverlayDir, constants.OverlayFs)
 		if err := mount.Mount(&m.cfg.Config); err != nil {
-			m.cfg.Config.Logger.Errorf("Error writing fstab: %v", err.Error())
+			m.cfg.Config.Logger.Errorf("Error mounting overlay: %v", err.Error())
 			return err
 		}
 
 		fstab = append(fstab, mount.FstabLine())
 	}
 
+	// mount -t auto "${mount#*:}" "/sysroot${mount%%:*}"
+	// echo "${mount#*:} ${mount%%:*} auto defaults 0 0\n"
+
+	// mount volumes/persistent
+
+	for _, volume := range m.spec.Volumes {
+		opts := []string{"defaults"}
+
+		mountpoint := filepath.Join(m.spec.MountPoint, volume.MountPoint)
+		if err := utils.MkdirAll(m.cfg.Config.Fs, mountpoint, constants.DirPerm); err != nil {
+			m.cfg.Config.Logger.Errorf("Error mkdir merged: %v", err.Error())
+			return err
+		}
+
+		disk := filepath.Join("/dev/disk/by-label", volume.Label)
+		if err := m.cfg.Mounter.Mount(disk, mountpoint, constants.AutoFs, opts); err != nil {
+			m.cfg.Config.Logger.Errorf("Error mounting overlay: %v", err.Error())
+			return err
+		}
+
+		line := fmt.Sprintf("%s\t%s\t%s\t%s", disk, volume.MountPoint, constants.AutoFs, strings.Join(opts, ","))
+
+		fstab = append(fstab, line)
+	}
+
 	// mount state
+
+	if err := utils.MkdirAll(m.cfg.Config.Fs, m.spec.PersistentStateTarget, constants.DirPerm); err != nil {
+		m.cfg.Config.Logger.Errorf("Error mkdir base: %v", err.Error())
+		return err
+	}
+
 	for _, statePath := range m.spec.PersistentStatePaths {
 		base := filepath.Join(m.spec.MountPoint, statePath)
 		if err := utils.MkdirAll(m.cfg.Config.Fs, base, constants.DirPerm); err != nil {
@@ -102,8 +133,9 @@ func (m MountRootFSAction) MountRootFS() error {
 			return err
 		}
 
+		// TODO: old immutable-rootfs rsyncs stuff here...
 		// TODO: should create OverlayMount if PersistentStateBind is set to false
-		mount := NewBindMount(statePath, m.spec.MountPoint, m.spec.PersistentStateTarget)
+		mount := NewBindMount(stateDir, m.spec.MountPoint, m.spec.PersistentStateTarget)
 
 		if err := mount.Mount(&m.cfg.Config); err != nil {
 			m.cfg.Config.Logger.Errorf("Error writing fstab: %v", err.Error())
@@ -112,8 +144,6 @@ func (m MountRootFSAction) MountRootFS() error {
 
 		fstab = append(fstab, mount.FstabLine())
 	}
-
-	// TODO: mount persistent
 
 	fstabPath := filepath.Join(m.spec.MountPoint, "etc", "fstab")
 	if err := m.cfg.Config.Fs.WriteFile(fstabPath, []byte(strings.Join(fstab, "\n")), 0644); err != nil {

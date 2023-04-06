@@ -227,13 +227,16 @@ func NewMountSpec(cfg v1.Config) *v1.MountSpec {
 	}
 
 	return &v1.MountSpec{
-		Partitions:            NewInstallElementalParitions(),
-		Image:                 img,
-		RootPermission:        constants.DefaultRootPerm,
-		ImagePath:             filepath.Join("/cOS", constants.ActiveImgFile),
-		MountPoint:            constants.DefaultSysroot,
-		SwitchRoot:            false,
-		Volumes:               []string{"LABEL=COS_OEM:/oem", "LABEL=COS_PERSISTENT:/usr/local"},
+		Partitions:     NewInstallElementalParitions(),
+		Image:          img,
+		RootPermission: constants.DefaultRootPerm,
+		ImagePath:      filepath.Join("/cOS", constants.ActiveImgFile),
+		MountPoint:     constants.DefaultSysroot,
+		SwitchRoot:     false,
+		Volumes: []*v1.Volume{
+			{Label: "COS_OEM", MountPoint: "/oem"},
+			{Label: "COS_PERSISTENT", MountPoint: "/usr/local"},
+		},
 		Overlay:               "tmpfs:25%",
 		RwPaths:               []string{"/var", "/etc"},
 		PersistentStatePaths:  []string{"/etc/systemd", "/etc/rancher", "/etc/ssh", "/etc/iscsi", "/etc/cni", "/home", "/opt", "/root", "/usr/libexec", "/var/log", "/var/lib/elemental", "/var/lib/rancher", "/var/lib/kubelet", "/var/lib/NetworkManager", "/var/lib/longhorn", "/var/lib/cni", "/var/lib/calico"},

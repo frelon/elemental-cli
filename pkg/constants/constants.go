@@ -53,6 +53,7 @@ const (
 	TmpFs              = "tmpfs"
 	OverlayFs          = "overlay"
 	NoneFs             = "none"
+	AutoFs             = "auto"
 	BiosFs             = ""
 	EfiSize            = uint(64)
 	OEMSize            = uint(64)
