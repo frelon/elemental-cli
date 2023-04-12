@@ -17,6 +17,7 @@ limitations under the License.
 package action
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -119,6 +120,11 @@ func (m MountRootFSAction) MountRootFS() error {
 		return err
 	}
 
+	// TODO: should create OverlayMount if PersistentStateBind is set to false
+	if m.spec.PersistentStateBind == false {
+		return errors.New("Persistent state overlay not enabled yet TODO")
+	}
+
 	for _, statePath := range m.spec.PersistentStatePaths {
 		base := filepath.Join(m.spec.MountPoint, statePath)
 		if err := utils.MkdirAll(m.cfg.Config.Fs, base, constants.DirPerm); err != nil {
@@ -127,15 +133,14 @@ func (m MountRootFSAction) MountRootFS() error {
 		}
 
 		trimmed := strings.TrimPrefix(statePath, "/")
-		stateDir := filepath.Join(m.spec.MountPoint, strings.ReplaceAll(trimmed, "/", "-")+".bind")
+		trimmed = strings.ReplaceAll(trimmed, "/", "-") + ".bind"
+		stateDir := filepath.Join(m.spec.MountPoint, m.spec.PersistentStateTarget, trimmed)
 		if err := utils.MkdirAll(m.cfg.Config.Fs, stateDir, constants.DirPerm); err != nil {
 			m.cfg.Config.Logger.Errorf("Error mkdir base: %v", err.Error())
 			return err
 		}
 
-		// TODO: old immutable-rootfs rsyncs stuff here...
-		// TODO: should create OverlayMount if PersistentStateBind is set to false
-		mount := NewBindMount(stateDir, m.spec.MountPoint, m.spec.PersistentStateTarget)
+		mount := NewBindMount(statePath, m.spec.MountPoint, m.spec.PersistentStateTarget, trimmed)
 
 		if err := mount.Mount(&m.cfg.Config); err != nil {
 			m.cfg.Config.Logger.Errorf("Error writing fstab: %v", err.Error())
@@ -177,7 +182,7 @@ func (m OverlayMount) FstabLine() string {
 	upper := filepath.Join(m.overlayDir, strings.ReplaceAll(trimmed, "/", "-")+".overlay", "upper")
 	work := filepath.Join(m.overlayDir, strings.ReplaceAll(trimmed, "/", "-")+".overlay", "work")
 	fstabOpts := []string{"defaults", fmt.Sprintf("lowerdir=%s", m.source), fmt.Sprintf("upperdir=%s", upper), fmt.Sprintf("workdir=%s", work)}
-	return fmt.Sprintf("%s\t%s\t%s\t%s", m.source, m.path, constants.OverlayFs, strings.Join(fstabOpts, ","))
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t0\t0", m.source, m.path, constants.OverlayFs, strings.Join(fstabOpts, ","))
 }
 
 func (m OverlayMount) Mount(cfg *v1.Config) error {
@@ -189,9 +194,10 @@ func (m OverlayMount) Mount(cfg *v1.Config) error {
 }
 
 type BindMount struct {
-	path     string
-	base     string
-	stateDir string
+	path        string
+	base        string
+	stateTarget string
+	stateDir    string
 }
 
 // example:
@@ -206,21 +212,24 @@ type BindMount struct {
 // mount -o defaults,bind "${state_dir}" "${base}"
 // fstab_line="${state_dir##/sysroot} /${mount} none defaults,bind 0 0\n"
 
-func NewBindMount(path, base, stateDir string) BindMount {
+func NewBindMount(path, base, stateTarget, stateDir string) BindMount {
 	return BindMount{
-		path:     path,
-		base:     base,
-		stateDir: stateDir,
+		path:        path,
+		base:        base,
+		stateTarget: stateTarget,
+		stateDir:    stateDir,
 	}
 }
 
 func (m BindMount) FstabLine() string {
+	stateDir := filepath.Join(m.stateTarget, m.stateDir)
 	fstabOpts := []string{"defaults", "bind"}
-	return fmt.Sprintf("%s\t%s\t%s\t%s", m.stateDir, m.path, constants.NoneFs, strings.Join(fstabOpts, ","))
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t0\t0", stateDir, m.path, constants.NoneFs, strings.Join(fstabOpts, ","))
 }
 
 func (m BindMount) Mount(cfg *v1.Config) error {
 	source := filepath.Join(m.base, m.path)
+	stateDir := filepath.Join(m.base, m.stateTarget, m.stateDir)
 	opts := []string{"defaults", "bind"}
-	return cfg.Mounter.Mount(source, m.stateDir, constants.NoneFs, opts)
+	return cfg.Mounter.Mount(source, stateDir, constants.NoneFs, opts)
 }
